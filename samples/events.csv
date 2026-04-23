@@ -1,0 +1,10 @@
+event_id,account_id,event_type,event_time,source
+evt-001,acct-100,signup,2026-04-01T10:00:00Z,web
+evt-002,acct-100,activation,2026-04-01T10:12:00Z,web
+evt-003,acct-100,purchase,2026-04-02T09:30:00Z,billing
+evt-004,acct-101,signup,2026-04-02T13:15:00Z,web
+evt-005,acct-101,activation,2026-04-03T15:10:00Z,mobile
+evt-006,acct-102,signup,2026-04-03T16:05:00Z,web
+evt-006,acct-102,purchase,2026-04-04T08:10:00Z,billing
+evt-008,,activation,2026-04-04T11:30:00Z,mobile
+evt-009,acct-103,signup,bad-timestamp,web
