@@ -2,6 +2,10 @@
 
 Cloud Data Quality Pipeline Lab is a local data-platform tool that validates incoming event records, separates clean and rejected rows, calculates pipeline quality metrics, and produces AI-assisted operational insight for data quality review.
 
+## Product Screenshot
+
+![Product screenshot](assets/product-screenshot.png)
+
 The project models a production data pipeline pattern: deterministic validation remains the source of truth, while a local AI analyst explains data quality risks, likely root causes, and next actions for operators.
 
 ## What It Does
