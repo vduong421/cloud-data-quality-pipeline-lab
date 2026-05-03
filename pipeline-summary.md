@@ -1,19 +1,19 @@
 # Pipeline Summary
 
-- Total rows: 9
-- Clean rows: 6
+- Total rows: 49
+- Clean rows: 46
 - Rejected rows: 3
-- Data quality rate: 66.7%
+- Data quality rate: 93.9%
 
 ## Events By Type
-- signup: 3
-- activation: 2
-- purchase: 1
+- signup: 36
+- activation: 7
+- purchase: 3
 
 ## Funnel Counts
-- Signup accounts: 3
-- Activated accounts: 2
-- Purchase accounts: 1
+- Signup accounts: 36
+- Activated accounts: 7
+- Purchase accounts: 3
 
 ## Top Rejection Reasons
 - duplicate_event_id: 1

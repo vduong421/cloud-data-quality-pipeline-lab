@@ -1,0 +1,225 @@
+<html>
+<head>
+<title>Cloud Data Pipeline Dashboard</title>
+<style>
+body {
+    margin:0;
+    font-family:Arial;
+    background:#0f172a;
+    color:white;
+}
+
+.container {
+    padding:20px;
+    max-width:1200px;
+    margin:auto;
+}
+
+.card {
+    background:#1e293b;
+    border-radius:12px;
+    padding:20px;
+    margin-bottom:20px;
+}
+
+h1 {
+    margin-bottom:20px;
+}
+
+.section-title {
+    color:#60a5fa;
+    margin-bottom:10px;
+}
+
+.kpi {
+    display:flex;
+    gap:20px;
+}
+
+.kpi-box {
+    background:#111827;
+    padding:15px;
+    border-radius:8px;
+    flex:1;
+    text-align:center;
+}
+
+.value {
+    font-size:24px;
+    font-weight:bold;
+}
+
+.good { color:#22c55e; }
+.bad { color:#ef4444; }
+.warn { color:#f59e0b; }
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Cloud Data Pipeline Dashboard</h1>
+
+<div class="card">
+    <div class="section-title">AI Analyst</div>
+
+    <div id="ai_result"></div>
+    <div id="ai_recommendation"></div>
+    <div id="ai_decision"></div>
+    <div id="ai_summary"></div>
+</div>
+
+<div class="card">
+    <div class="section-title">Ask Local AI</div>
+
+    <input id="chat_input" placeholder="Ask about pipeline..." style="width:70%;padding:10px;border-radius:6px;border:none">
+    <button onclick="askAI()" style="padding:10px 16px;margin-left:10px;background:#3b82f6;color:white;border:none;border-radius:6px">Ask</button>
+
+    <div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button onclick="fillQ('What are the top data quality risks in this pipeline?')" style="padding:6px 10px;background:#1e293b;color:#60a5fa;border:none;border-radius:6px">Top Risks</button>
+        <button onclick="fillQ('Why were rows rejected and how to fix them?')" style="padding:6px 10px;background:#1e293b;color:#60a5fa;border:none;border-radius:6px">Rejection Causes</button>
+        <button onclick="fillQ('What is the funnel drop-off between signup, activation, and purchase?')" style="padding:6px 10px;background:#1e293b;color:#60a5fa;border:none;border-radius:6px">Funnel Drop-off</button>
+        <button onclick="fillQ('What actions should engineers take to improve data quality?')" style="padding:6px 10px;background:#1e293b;color:#60a5fa;border:none;border-radius:6px">Operator Actions</button>
+    </div>
+
+    <div id="chat_status" style="margin-top:10px;color:#f59e0b;font-weight:bold;"></div>
+
+    <div style="margin-top:15px">
+        <div id="chat_answer"></div>
+        <div id="chat_evidence"></div>
+        <div id="chat_next"></div>
+        <div id="chat_recommendation"></div>
+        <div id="chat_decision"></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-title">Pipeline Metrics</div>
+
+    <div class="kpi">
+        <div class="kpi-box">
+            <div>Total Rows</div>
+            <div class="value" id="total"></div>
+        </div>
+        <div class="kpi-box">
+            <div>Clean</div>
+            <div class="value good" id="clean"></div>
+        </div>
+        <div class="kpi-box">
+            <div>Rejected</div>
+            <div class="value bad" id="rejected"></div>
+        </div>
+        <div class="kpi-box">
+            <div>Quality</div>
+            <div class="value warn" id="quality"></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-title">Events Breakdown</div>
+    <pre id="events"></pre>
+</div>
+
+<div class="card">
+    <div class="section-title">Rejection Reasons</div>
+    <pre id="reasons"></pre>
+</div>
+
+</div>
+
+<script>
+async function load(){
+    let r = await fetch("/data",{method:"POST"});
+    let d = await r.json();
+
+    document.getElementById("total").innerText = d.total_rows;
+    document.getElementById("clean").innerText = d.clean_rows;
+    document.getElementById("rejected").innerText = d.rejected_rows;
+    document.getElementById("quality").innerText = (d.quality_rate*100).toFixed(1)+"%";
+
+    document.getElementById("events").innerText =
+        JSON.stringify(d.events_by_type,null,2);
+
+    document.getElementById("reasons").innerText =
+        JSON.stringify(d.top_rejection_reasons,null,2);
+
+if(d.ai_copilot){
+    document.getElementById("ai_result").innerHTML =
+        "<b>Result:</b> " + d.ai_copilot.result;
+
+    document.getElementById("ai_recommendation").innerHTML =
+        "<b>Recommendation:</b> " + d.ai_copilot.recommendation;
+
+    document.getElementById("ai_decision").innerHTML =
+        "<b>Decision:</b> " + d.ai_copilot.decision;
+
+    document.getElementById("ai_summary").innerHTML =
+        "<b>Summary:</b> " + d.ai_copilot.executive_summary;
+
+    if(d.ai_copilot.top_risks){
+        document.getElementById("ai_summary").innerHTML +=
+            "<br><br><b>Top Risks:</b><br>" + d.ai_copilot.top_risks.join("<br>");
+    }
+
+    if(d.ai_copilot.operator_actions){
+        document.getElementById("ai_summary").innerHTML +=
+            "<br><br><b>Actions:</b><br>" + d.ai_copilot.operator_actions.join("<br>");
+    }
+}
+}
+
+function fillQ(q){
+    document.getElementById("chat_input").value = q;
+}
+
+async function askAI(){
+    let input = document.getElementById("chat_input").value;
+
+    document.getElementById("chat_status").innerText = "Running Local AI...";
+    document.getElementById("chat_status").style.color = "#f59e0b";
+    document.getElementById("chat_answer").innerHTML = "";
+    document.getElementById("chat_evidence").innerHTML = "";
+    document.getElementById("chat_next").innerHTML = "";
+    document.getElementById("chat_recommendation").innerHTML = "";
+    document.getElementById("chat_decision").innerHTML = "";
+
+    try{
+        let r = await fetch("/chat", {
+            method: "POST",
+            body: input
+        });
+
+        let d = await r.json();
+
+        document.getElementById("chat_status").innerText = "Local AI Finished";
+        document.getElementById("chat_status").style.color = "#22c55e";
+
+        document.getElementById("chat_answer").innerHTML =
+            "<b>Answer:</b> " + d.answer;
+
+        document.getElementById("chat_evidence").innerHTML =
+            "<b>Evidence:</b> " + d.evidence;
+
+        document.getElementById("chat_next").innerHTML =
+            "<b>Next:</b> " + d.next_action;
+
+        document.getElementById("chat_recommendation").innerHTML =
+            "<b>Recommendation:</b> " + d.recommendation;
+
+        document.getElementById("chat_decision").innerHTML =
+            "<b>Decision:</b> " + d.decision;
+
+    } catch(e){
+        document.getElementById("chat_status").innerText = "Local AI Failed";
+        document.getElementById("chat_status").style.color = "#ef4444";
+    }
+}
+
+window.onload = load;
+</script>
+
+</body>
+</html>

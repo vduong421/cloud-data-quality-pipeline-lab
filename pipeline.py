@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import csv
 import json
 import sqlite3
@@ -6,6 +6,12 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
+
+SHARED = Path(__file__).resolve().parents[1] / "_shared_project_workbench"
+if str(SHARED) not in sys.path:
+    sys.path.insert(0, str(SHARED))
+
+from local_llm import chat_json
 
 
 REQUIRED_FIELDS = ["event_id", "account_id", "event_type", "event_time"]
@@ -120,8 +126,53 @@ def write_markdown(summary):
     Path("pipeline-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def generate_ai_insights(summary, model):
+    prompt = f"""You are a senior data platform AI analyst.
+
+You are reviewing deterministic pipeline output.
+
+Return ONLY valid JSON with:
+
+- result
+- recommendation
+- decision
+- executive_summary
+- top_risks (array of 3)
+- operator_actions (array of 3)
+- resume_signal
+
+Rules:
+- be concrete
+- use actual numbers from summary
+- no hallucination
+- each field must be concise
+
+Pipeline summary:
+{json.dumps(summary, indent=2)}
+"""
+    try:
+        return chat_json(prompt, model=model)
+    except Exception as e:
+        return {
+            "result": "",
+            "recommendation": "",
+            "decision": "",
+            "executive_summary": str(e),
+            "top_risks": [],
+            "operator_actions": [],
+            "resume_signal": ""
+        }
+
+
 def main():
-    input_path = Path(sys.argv[1] if len(sys.argv) > 1 else "samples/events.csv")
+    args = sys.argv[1:]
+    input_path = Path(args[0] if args and not args[0].startswith("--") else "samples/events.csv")
+    use_ai = "--use-ai" in args
+    model = "google/gemma-4-e4b"
+    if "--model" in args:
+        idx = args.index("--model")
+        if idx + 1 < len(args):
+            model = args[idx + 1]
     rows = load_rows(input_path)
     seen = set()
     clean_rows = []
@@ -146,8 +197,59 @@ def main():
     summary = summarize(clean_rows, rejected_rows)
     Path("pipeline-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     write_markdown(summary)
-    print(json.dumps(summary, indent=2))
+    if use_ai:
+        ai = generate_ai_insights(summary, model)
+
+        if not isinstance(ai, dict):
+            ai = {}
+
+        ai = {
+            "result": ai.get("result",""),
+            "recommendation": ai.get("recommendation",""),
+            "decision": ai.get("decision",""),
+            "executive_summary": ai.get("executive_summary",""),
+            "top_risks": ai.get("top_risks",[]),
+            "operator_actions": ai.get("operator_actions",[]),
+            "resume_signal": ai.get("resume_signal","")
+        }
+
+        output = {
+            **summary,
+            "ai_copilot": ai
+        }
+
+        Path("pipeline-ai-insights.json").write_text(
+            json.dumps(output, indent=2),
+            encoding="utf-8"
+        )
+
+        ai_lines = [
+            "# AI Pipeline Brief",
+            "",
+            f"## Result\n{ai.get('result','')}",
+            "",
+            f"## Recommendation\n{ai.get('recommendation','')}",
+            "",
+            f"## Decision\n{ai.get('decision','')}",
+            "",
+            "## Executive Summary",
+            ai.get("executive_summary",""),
+            "",
+            "## Top Risks",
+            *[f"- {item}" for item in ai.get("top_risks", [])],
+            "",
+            "## Operator Actions",
+            *[f"- {item}" for item in ai.get("operator_actions", [])],
+            "",
+            f"## Resume Signal\n- {ai.get('resume_signal', '')}",
+        ]
+
+        Path("pipeline-ai-insights.md").write_text("\n".join(ai_lines) + "\n", encoding="utf-8")
+
+        summary["ai_copilot"] = ai
+    print(f"[PIPELINE DONE] rows={summary['total_rows']} clean={summary['clean_rows']} rejected={summary['rejected_rows']} quality={summary['quality_rate']}")
 
 
 if __name__ == "__main__":
     main()
+
